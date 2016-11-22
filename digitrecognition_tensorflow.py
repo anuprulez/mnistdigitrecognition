@@ -1,14 +1,11 @@
 import pandas as pd
-from pandas import Series, DataFrame
-# pandas
-import csv
+from pandas import DataFrame
 import tensorflow as tf
 # numpy
 import numpy as np
-import sys
 import datetime
-# get digit train and test files
 
+# get digit train and test files
 print "loading files..."
 a = datetime.datetime.now()
 digit_train = pd.read_csv("train.csv")
@@ -35,24 +32,23 @@ def max_pool_2x2(x):
   return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
                         strides=[1, 2, 2, 1], padding='SAME')
 
-def get_data_batch(starting_index, batch_size):
+train_data_conv = []
+
+def get_data_batch(starting_index, batch_size, train_data):
     set_train = []
     set_label = []
-    for i in range(starting_index, starting_index + batch_size):
-        pixels = []
-        pixels_row = DataFrame(data=digit_train, index=[i] )
-        row_data = list(pixels_row.values)
-        set_train.append( row_data[0] )
-        set_label.append(y_values[i])
-    return [ set_train, set_label ] 
+    for i in range( starting_index, starting_index + batch_size ):
+        set_train.append( train_data[i] )
+        set_label.append( y_values[i] )
+    return [ set_train, set_label ]
 
-def convert_test_data(test_data):
-    set_test_data = []
-    for i in range(0, len( test_data )):
-        pixels_row = DataFrame(data=digit_test, index=[i] )
+def convert_data(data_):
+    data_conv = []
+    for i in range(0, len( data_ )):
+        pixels_row = DataFrame(data=data_, index=[i] )
         row_data = list(pixels_row.values)
-        set_test_data.append(row_data[0])
-    return set_test_data
+        data_conv.append(row_data[0])
+    return data_conv
 
 # Format label collection
 y_values = np.zeros((len(digit_train_label), 10))
@@ -106,16 +102,23 @@ prediction = tf.argmax(y_conv,1)
 sess = tf.Session()
 sess.run(tf.initialize_all_variables())
 
+print "training data conversion started..."
+a = datetime.datetime.now()
+train_data_conv = convert_data(digit_train)
+b = datetime.datetime.now()
+print (b-a)
+print "training data conversion finished"
+
 print "training in batches started..."
 a = datetime.datetime.now()
-iteration = 120
-batch_size = 50
-validation_set_size = 2000
-digit_train_length = len(digit_train) - validation_set_size
+iteration = 200
+batch_size = 25
+validation_set_size = 100
+digit_train_length = len(train_data_conv) - validation_set_size
 for i in range(iteration):
     batch_index = 0
     for j in range(0, digit_train_length/batch_size):
-        batch = get_data_batch(batch_index, batch_size)
+        batch = get_data_batch(batch_index, batch_size, train_data_conv)
         batch_index = batch_index + batch_size
         if batch_index % 10000 == 0:
             train_accuracy = accuracy.eval(feed_dict={x:batch[0], y_: batch[1], keep_prob: 1.0}, session=sess)
@@ -129,7 +132,7 @@ print "training finished"
 # Validation
 a = datetime.datetime.now()
 print "validation started..."
-batch_validation = get_data_batch(len(digit_train) - validation_set_size, validation_set_size)
+batch_validation = get_data_batch(len(train_data_conv) - validation_set_size, validation_set_size, train_data_conv)
 validation_accuracy = accuracy.eval(feed_dict={x:batch_validation[0], y_: batch_validation[1], keep_prob: 1.0}, session=sess)
 print("Validation accuracy %g"%(validation_accuracy)) 
 print "validation finished"
@@ -139,7 +142,7 @@ print (b-a)
 # Test data conversion
 a = datetime.datetime.now()
 print "test data conversion started..."
-test_data_conv = convert_test_data(digit_test)
+test_data_conv = convert_data(digit_test)
 b = datetime.datetime.now()
 print (b-a)
 
@@ -179,4 +182,3 @@ b = datetime.datetime.now()
 print "program ended at: "
 print b
 sess.close()
-
